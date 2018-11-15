@@ -1,11 +1,12 @@
 import org.xml.sax.SAXException;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
-import java.util.ArrayList;
+import java.util.*;
 
 /**
  * Graph for storing all of the intersection (vertex) and road (edge) information.
@@ -17,6 +18,8 @@ import java.util.ArrayList;
  * @author Alan Yao, Josh Hug
  */
 public class GraphDB {
+    Map<Long, Node> nodeMap = new HashMap<>();
+    Node compareNode = new Node(0, 0 , 0);
     /** Your instance variables for storing the graph. You should consider
      * creating helper classes, e.g. Node, Edge, etc. */
 
@@ -28,10 +31,13 @@ public class GraphDB {
     public GraphDB(String dbPath) {
         try {
             File inputFile = new File(dbPath);
+            FileInputStream inputStream = new FileInputStream(inputFile);
+            // GZIPInputStream stream = new GZIPInputStream(inputStream);
+
             SAXParserFactory factory = SAXParserFactory.newInstance();
             SAXParser saxParser = factory.newSAXParser();
             GraphBuildingHandler gbh = new GraphBuildingHandler(this);
-            saxParser.parse(inputFile, gbh);
+            saxParser.parse(inputStream, gbh);
         } catch (ParserConfigurationException | SAXException | IOException e) {
             e.printStackTrace();
         }
@@ -54,37 +60,187 @@ public class GraphDB {
      */
     private void clean() {
         // TODO: Your code here.
+        List<Long> removeList = new ArrayList<>();
+        for(Map.Entry<Long, Node> each:nodeMap.entrySet()){
+            long id = each.getKey();
+            if(each.getValue().edge.size()==0){
+                removeList.add(id);
+            }
+        }
+        for(int i=0;i<removeList.size();i++){
+            nodeMap.remove(removeList.get(i));
+        }
     }
 
-    /** Returns an iterable of all vertex IDs in the graph. */
+    /**
+     * Returns an iterable of all vertex IDs in the graph.
+     * @return An iterable of id's of all vertices in the graph.
+     */
     Iterable<Long> vertices() {
         //YOUR CODE HERE, this currently returns only an empty list.
-        return new ArrayList<Long>();
+        List<Long> nodeIdList = new ArrayList<>();
+        for(Map.Entry<Long, Node> each:nodeMap.entrySet()){
+            nodeIdList.add(each.getKey().longValue());
+        }
+        return nodeIdList;
     }
 
-    /** Returns ids of all vertices adjacent to v. */
+    /**
+     * Returns ids of all vertices adjacent to v.
+     * @param v The id of the vertex we are looking adjacent to.
+     * @return An iterable of the ids of the neighbors of v.
+     */
     Iterable<Long> adjacent(long v) {
-        return null;
+        Node vNode = nodeMap.get(v);
+        List<Long> nodeAdjacentList = new ArrayList<>();
+        for(Map.Entry<Long, Node> each:vNode.edge.entrySet()){
+            nodeAdjacentList.add(each.getKey());
+        }
+        return nodeAdjacentList;
     }
 
-    /** Returns the Euclidean distance between vertices v and w, where Euclidean distance
-     *  is defined as sqrt( (lonV - lonV)^2 + (latV - latV)^2 ). */
+    /**
+     * Returns the great-circle distance between vertices v and w in miles.
+     * Assumes the lon/lat methods are implemented properly.
+     * <a href="https://www.movable-type.co.uk/scripts/latlong.html">Source</a>.
+     * @param v The id of the first vertex.
+     * @param w The id of the second vertex.
+     * @return The great-circle distance between the two locations from the graph.
+     */
     double distance(long v, long w) {
-        return 0;
+        return distance(lon(v), lat(v), lon(w), lat(w));
     }
 
-    /** Returns the vertex id closest to the given longitude and latitude. */
+    static double distance(double lonV, double latV, double lonW, double latW) {
+        double phi1 = Math.toRadians(latV);
+        double phi2 = Math.toRadians(latW);
+        double dphi = Math.toRadians(latW - latV);
+        double dlambda = Math.toRadians(lonW - lonV);
+
+        double a = Math.sin(dphi / 2.0) * Math.sin(dphi / 2.0);
+        a += Math.cos(phi1) * Math.cos(phi2) * Math.sin(dlambda / 2.0) * Math.sin(dlambda / 2.0);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return 3963 * c;
+    }
+
+    /**
+     * Returns the initial bearing (angle) between vertices v and w in degrees.
+     * The initial bearing is the angle that, if followed in a straight line
+     * along a great-circle arc from the starting point, would take you to the
+     * end point.
+     * Assumes the lon/lat methods are implemented properly.
+     * <a href="https://www.movable-type.co.uk/scripts/latlong.html">Source</a>.
+     * @param v The id of the first vertex.
+     * @param w The id of the second vertex.
+     * @return The initial bearing between the vertices.
+     */
+    double bearing(long v, long w) {
+        return bearing(lon(v), lat(v), lon(w), lat(w));
+    }
+
+    static double bearing(double lonV, double latV, double lonW, double latW) {
+        double phi1 = Math.toRadians(latV);
+        double phi2 = Math.toRadians(latW);
+        double lambda1 = Math.toRadians(lonV);
+        double lambda2 = Math.toRadians(lonW);
+
+        double y = Math.sin(lambda2 - lambda1) * Math.cos(phi2);
+        double x = Math.cos(phi1) * Math.sin(phi2);
+        x -= Math.sin(phi1) * Math.cos(phi2) * Math.cos(lambda2 - lambda1);
+        return Math.toDegrees(Math.atan2(y, x));
+    }
+
+    /**
+     * Returns the vertex closest to the given longitude and latitude.
+     * @param lon The target longitude.
+     * @param lat The target latitude.
+     * @return The id of the node in the graph closest to the target.
+     */
     long closest(double lon, double lat) {
-        return 0;
+        long result = 0;
+        compareNode = new Node(0, lon, lat);
+        double distance = Double.MAX_VALUE;
+        for(Map.Entry<Long, Node> each:nodeMap.entrySet()){
+            if(distance(0, each.getKey().longValue())<distance){
+                distance = distance(0, each.getKey().longValue());
+                result = each.getKey();
+            }
+        }
+        return result;
     }
 
-    /** Longitude of vertex v. */
+    /**
+     * Gets the longitude of a vertex.
+     * @param v The id of the vertex.
+     * @return The longitude of the vertex.
+     */
     double lon(long v) {
-        return 0;
+        if(v==0)
+            return compareNode.lon;
+        Node thisNode = nodeMap.get(v);
+        return thisNode.lon;
     }
 
-    /** Latitude of vertex v. */
+    /**
+     * Gets the latitude of a vertex.
+     * @param v The id of the vertex.
+     * @return The latitude of the vertex.
+     */
     double lat(long v) {
-        return 0;
+        if(v==0)
+            return compareNode.lat;
+        Node thisNode = nodeMap.get(v);
+        return thisNode.lat;
     }
+
+    public class Node{
+        long id;
+        double lon;
+        double lat;
+        String name;
+        Map<Long, Node> edge;
+        double distanceFromStart = Long.MAX_VALUE;
+        Node lastNode;
+        String wayName;
+
+
+        public Node(long id, double lon, double lat){
+            this.id = id;
+            this.lat = lat;
+            this.lon = lon;
+            this.name = null;
+            this.edge = new HashMap<>();
+            this.distanceFromStart = Long.MAX_VALUE;
+            lastNode = null;
+            wayName = null;
+        }
+
+    }
+
+
+    public void addNode(long id, double lon, double lat){
+        this.nodeMap.put(id, new Node(id, lon, lat));
+    }
+
+    public void addNode(Node node){
+        this.nodeMap.put(node.id, node);
+    }
+
+    public void addEdge(long id1, long id2){
+        Node node1 = this.nodeMap.get(id1);
+        Node node2 = this.nodeMap.get(id2);
+        node1.edge.put(id2, node2);
+        node2.edge.put(id1, node1);
+    }
+
+    public void addEdge(Node node1, Node node2){
+        long id1 = node1.id;
+        long id2 = node2.id;
+        node1.edge.put(id2, node2);
+        node2.edge.put(id1, node1);
+    }
+
+
+
+
 }

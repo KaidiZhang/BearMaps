@@ -4,12 +4,7 @@ import java.awt.BasicStroke;
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 import java.io.IOException;
@@ -45,27 +40,27 @@ public class MapServer {
     /** Route stroke information: Cyan with half transparency. */
     public static final Color ROUTE_STROKE_COLOR = new Color(108, 181, 230, 200);
     /** The tile images are in the IMG_ROOT folder. */
-    private static final String IMG_ROOT = "img/";
+    private static final String IMG_ROOT = "../library-sp18/data/proj3_imgs/";
     /**
      * The OSM XML file path. Downloaded from <a href="http://download.bbbike.org/osm/">here</a>
      * using custom region selection.
      **/
-    private static final String OSM_DB_PATH = "berkeley.osm";
+    private static final String OSM_DB_PATH = "../library-sp18/data/berkeley-2018.osm.xml";
     /**
      * Each raster request to the server will have the following parameters
      * as keys in the params map accessible by,
      * i.e., params.get("ullat") inside getMapRaster(). <br>
-     * ullat -> upper left corner latitude,<br> ullon -> upper left corner longitude, <br>
-     * lrlat -> lower right corner latitude,<br> lrlon -> lower right corner longitude <br>
-     * w -> user viewport window width in pixels,<br> h -> user viewport height in pixels.
+     * ullat : upper left corner latitude, <br> ullon : upper left corner longitude, <br>
+     * lrlat : lower right corner latitude,<br> lrlon : lower right corner longitude <br>
+     * w : user viewport window width in pixels,<br> h : user viewport height in pixels.
      **/
     private static final String[] REQUIRED_RASTER_REQUEST_PARAMS = {"ullat", "ullon", "lrlat",
         "lrlon", "w", "h"};
     /**
      * Each route request to the server will have the following parameters
      * as keys in the params map.<br>
-     * start_lat -> start point latitude,<br> start_lon -> start point longitude,<br>
-     * end_lat -> end point latitude, <br>end_lon -> end point longitude.
+     * start_lat : start point latitude,<br> start_lon : start point longitude,<br>
+     * end_lat : end point latitude, <br>end_lon : end point longitude.
      **/
     private static final String[] REQUIRED_ROUTE_REQUEST_PARAMS = {"start_lat", "start_lon",
         "end_lat", "end_lon"};
@@ -79,7 +74,7 @@ public class MapServer {
 
     private static Rasterer rasterer;
     private static GraphDB graph;
-    private static LinkedList<Long> route = new LinkedList<>();
+    private static List<Long> route = new LinkedList<>();
     /* Define any static variables here. Do not define any instance variables of MapServer. */
 
 
@@ -90,8 +85,9 @@ public class MapServer {
      **/
     public static void initialize() {
         graph = new GraphDB(OSM_DB_PATH);
-        rasterer = new Rasterer(IMG_ROOT);
+        rasterer = new Rasterer();
     }
+
 
     public static void main(String[] args) {
         initialize();
@@ -133,8 +129,13 @@ public class MapServer {
                     getRequestParams(req, REQUIRED_ROUTE_REQUEST_PARAMS);
             route = Router.shortestPath(graph, params.get("start_lon"), params.get("start_lat"),
                     params.get("end_lon"), params.get("end_lat"));
-            //route = findAndSetRoute(params);
-            return !route.isEmpty();
+            String directions = getDirectionsText();
+            Map<String, Object> routeParams = new HashMap<>();
+            routeParams.put("routing_success", !route.isEmpty());
+            routeParams.put("directions_success", directions.length() > 0);
+            routeParams.put("directions", directions);
+            Gson gson = new Gson();
+            return gson.toJson(routeParams);
         });
 
         /* Define the API endpoint for clearing the current route. */
@@ -169,8 +170,8 @@ public class MapServer {
     /**
      * Validate & return a parameter map of the required request parameters.
      * Requires that all input parameters are doubles.
-     * @param req HTTP Request
-     * @param requiredParams TestParams to validate
+     * @param req HTTP Request.
+     * @param requiredParams TestParams to validate.
      * @return A populated map of input parameter to it's numerical value.
      */
     private static HashMap<String, Double> getRequestParams(
@@ -192,7 +193,8 @@ public class MapServer {
         return params;
     }
 
-    /** Writes the images corresponding to rasteredImgParams to the output stream.
+    /**
+     * Writes the images corresponding to rasteredImgParams to the output stream.
      * In Spring 2016, students had to do this on their own, but in 2017,
      * we have made this into provided code since it was just a bit too low level.
      */
@@ -209,7 +211,7 @@ public class MapServer {
 
         for (int r = 0; r < numVertTiles; r += 1) {
             for (int c = 0; c < numHorizTiles; c += 1) {
-                graphic.drawImage(getImage(renderGrid[r][c]), x, y, null);
+                graphic.drawImage(getImage(IMG_ROOT + renderGrid[r][c]), x, y, null);
                 x += MapServer.TILE_SIZE;
                 if (x >= img.getWidth()) {
                     x = 0;
@@ -279,7 +281,13 @@ public class MapServer {
      * cleaned <code>prefix</code>.
      */
     public static List<String> getLocationsByPrefix(String prefix) {
-        return new LinkedList<>();
+        List<String> result = new ArrayList<>();
+        result.add("test1");
+        result.add("test2");
+        result.add("test3");
+        result.add("test4");
+        result.add("test5");
+        return result;
     }
 
     /**
@@ -289,16 +297,17 @@ public class MapServer {
      * @return A list of locations whose cleaned name matches the
      * cleaned <code>locationName</code>, and each location is a map of parameters for the Json
      * response as specified: <br>
-     * "lat" -> Number, The latitude of the node. <br>
-     * "lon" -> Number, The longitude of the node. <br>
-     * "name" -> String, The actual name of the node. <br>
-     * "id" -> Number, The id of the node. <br>
+     * "lat" : Number, The latitude of the node. <br>
+     * "lon" : Number, The longitude of the node. <br>
+     * "name" : String, The actual name of the node. <br>
+     * "id" : Number, The id of the node. <br>
      */
     public static List<Map<String, Object>> getLocations(String locationName) {
         return new LinkedList<>();
     }
 
-    /** Validates that Rasterer has returned a result that can be rendered.
+    /**
+     * Validates that Rasterer has returned a result that can be rendered.
      * @param rip : Parameters provided by the rasterer
      */
     private static boolean validateRasteredImgParams(Map<String, Object> rip) {
@@ -316,5 +325,23 @@ public class MapServer {
             }
         }
         return true;
+    }
+
+    /**
+     * Takes the route of this MapServer and converts it into an HTML friendly
+     * String to be passed to the frontend.
+     */
+    private static String getDirectionsText() {
+        List<Router.NavigationDirection> directions = Router.routeDirections(graph, route);
+        if (directions == null || directions.isEmpty()) {
+          return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        int step = 1;
+        for (Router.NavigationDirection d: directions) {
+            sb.append(String.format("%d. %s <br>", step, d));
+            step += 1;
+        }
+        return sb.toString();
     }
 }
