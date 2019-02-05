@@ -20,8 +20,6 @@ import static spark.Spark.*;
  * application project, receiving API calls, handling the API call processing, and generating
  * requested images and routes. You should not need to modify this file unless you're
  * doing the Autocomplete part of the project, though you are welcome to do so.
- * This code is using BearMaps skeleton code version 2.0.
- * @author Alan Yao, Josh Hug
  */
 public class MapServer {
     /**
