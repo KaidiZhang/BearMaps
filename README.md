@@ -8,3 +8,6 @@ Implement back end of a web mapping application with images downloaded from Open
 
 # Map page
 ![image](https://github.com/KaidiZhang/Map/raw/master/images/pic1.PNG)
+
+# Navigation
+![image](https://github.com/KaidiZhang/Map/raw/master/images/pic2.PNG)
